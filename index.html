@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ru">
+	<head>
+		<meta charset="utf-8">
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link href="https://fonts.googleapis.com/css?family=Ubuntu:300,400,700&amp;subset=cyrillic" rel="stylesheet">
+		<link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,700&amp;subset=cyrillic" rel="stylesheet">
+		<link href="https://fonts.googleapis.com/css?family=Roboto:300,400,700&amp;subset=cyrillic" rel="stylesheet">
+		<link href="https://fonts.googleapis.com/css?family=Playfair+Display:400,400i|Tinos:400,400i&amp;subset=cyrillic" rel="stylesheet">
+		<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<style>
+* { box-sizing: border-box; }
+body, html { height: 100%; }
+body { background-color: #000000; color: #ffffff; }
+h1 { font-family: "Playfair Display"; font-size: 30px; padding: 10px 0px; margin: 0px; }
+.field-box { border: 2px solid #d0d0d0; float: left; }
+.field { position: relative; width: 1000px; height: 600px; }
+.field .tile { position: absolute; width: 25px; height: 25px; background-size: 100%; background-image: url(images/tile-.png); z-index: 5; }
+.field .tileW { position: absolute; width: 25px; height: 25px; background-size: 100%; background-image: url(images/tile-W.png); }
+.field .tileE { background-image: url(images/tile-E.png); z-index: 10; }
+.field .tileP { background-image: url(images/tile-P.png); z-index: 10; }
+.field .tileHP { background-image: url(images/tile-HP.png); z-index: 9; }
+.field .tileSW { background-image: url(images/tile-SW.png); z-index: 9; }
+.field .tile .health { background-color: #ff0000; z-index: 11; position: absolute; left: 0px; top: 0px; height: 3px; }
+.field .tileP .health { background-color: #00ff00; z-index: 11; position: absolute; left: 0px; top: 0px; height: 3px; }
+.inventory-box { border: 2px solid #d0d0d0; float: left; }
+.inventory { position: relative; width: 800px; height: 32px; }
+.cl { clear: both; display: block; }
+.hidden { display: none;}
+.game-over{position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; font-size: 3em; font-weight: bold; color: red; background-color: white; padding: 10px 20px; border: 2px solid red; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);}
+.you-win{position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 9999; font-size: 3em; font-weight: bold; color: green; background-color: white; padding: 10px 20px; border: 2px solid green; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);}
+</style>
+	</head>
+	<body>
+		<h1>Игровое поле</h1>
+		<div class="field-box">
+			<div class="field" id="map">
+			</div>
+		</div>
+		<div class="cl"></div>
+		<!--h1>Инвентарь</h1>
+		<div class="inventory-box"><div class="inventory"></div></div-->
+
+		<script>
+			$(document).ready(function () {
+			const mapWidth = 40;
+			const mapHeight = 24;
+			const wall = "tileW";
+			const floor = "tile";
+			const player = "tileP";
+			const enemy = "tileE";
+			const sword = "tileSW"; 
+			const healthPotion = "tileHP";
+			const enemyHealth = [];
+			let playerHealth = 100;
+			let playerAttackDamage = 50;
+			const tileSize = 25;
+			const mapState = [];
+			const minRoomW = 3;
+			const maxRoomW = 8;
+			const minRoomH = 3;
+			const maxRoomH = 8;
+			const minRooms = 5;
+			const maxRooms = 10;
+			let playerX = 0;
+			let playerY = 0;
+			let enemyX = []; 
+			let enemyY = [];
+			const enemyEntities = [];
+			let playerEntity = { x: 0, y: 0 };
+			const healthPotionLocations = [];
+			const swordLocations = [];
+			let isPlayerTurn = true;
+
+			function generateMap() {
+    			const mapElement = document.getElementById("map");
+    			mapElement.innerHTML = ""; 
+				
+
+    			for (let y = 0; y < mapHeight; y++) {
+        			mapState[y] = [];
+        			for (let x = 0; x < mapWidth; x++) {
+            			const mainTile = document.createElement("div");
+            			mainTile.className = wall;
+						mainTile.style.left = x * tileSize + "px";
+						mainTile.style.top = y * tileSize + "px"; 
+            			mapElement.appendChild(mainTile);
+						mapState[y][x] = wall;
+        			}
+   				}
+
+				const numRooms = Math.floor(Math.random() * (maxRooms - minRooms + 1)) + minRooms;
+    			for (let i = 0; i < numRooms; i++) {
+        			const roomWidth = Math.floor(Math.random() * (maxRoomW - minRoomW + 1)) + minRoomW;
+        			const roomHeight = Math.floor(Math.random() * (maxRoomH - minRoomH + 1)) + minRoomH;
+        			const roomX = Math.floor(Math.random() * (mapWidth - roomWidth));
+        			const roomY = Math.floor(Math.random() * (mapHeight - roomHeight));
+
+
+        			for (let y = roomY; y < roomY + roomHeight; y++) {
+            			for (let x = roomX; x < roomX + roomWidth; x++) {
+                			if (mapState[y][x] === wall) {
+            					mapState[y][x] = floor;
+            					const wallTile = document.querySelector(`.field .tileW[style="left: ${x * tileSize}px; top: ${y * tileSize}px;"]`);
+            					wallTile.remove();
+        					} 
+            			}
+        			}
+    			}
+
+				
+				for (let i = 0; i < 5; i++) {
+    				const passageX = Math.floor(Math.random() * mapWidth);
+        			for (let y = 0; y < mapHeight; y++) {
+            			if (mapState[y][passageX] === wall) {
+                			mapState[y][passageX] = floor;
+							const passageTile = document.querySelector(`.field .tileW[style="left: ${passageX * tileSize}px; top: ${y * tileSize}px;"]`);
+            				passageTile.remove();
+            			}
+        			}
+
+
+        			const passageY = Math.floor(Math.random() * mapHeight);
+        			for (let x = 0; x < mapWidth; x++) {
+            			if (mapState[passageY][x] === wall) {
+                			mapState[passageY][x] = floor;
+							const passageTile = document.querySelector(`.field .tileW[style="left: ${x * tileSize}px; top: ${passageY * tileSize}px;"]`);
+            				passageTile.remove();
+            			}		
+        			}
+    			}
+
+
+    			for (let y = 0; y < mapHeight; y++) {
+       				for (let x = 0; x < mapWidth; x++) {
+            			if (mapState[y][x] !== wall) {
+                			const tile = document.createElement("div");
+                			tile.className = mapState[y][x]; 
+                			tile.style.left = x * tileSize + "px";
+                			tile.style.top = y * tileSize + "px"; 
+                			mapElement.appendChild(tile);
+           				}
+        			}
+    			}
+			}
+			
+			
+
+			function displayHealth(tileDiv, healthPercentage) {
+    			const healthDiv = document.createElement("div");
+    			healthDiv.className = "health";
+    			healthDiv.style.width = healthPercentage + "%";
+				healthDiv.id = "player-health-bar";
+    			tileDiv.appendChild(healthDiv);
+			}
+
+			function placeItems(itemType, count, healthPercentage = 100) {
+    			for (let i = 0; i < count; i++) {
+        			let x, y;
+        			do {
+            			x = Math.floor(Math.random() * mapWidth);
+            			y = Math.floor(Math.random() * mapHeight);
+        			} while (mapState[y][x] !== floor); 
+					const itemDiv = document.createElement("div");
+        			itemDiv.className = "tile " + itemType;
+        			itemDiv.style.left = x * tileSize + "px";
+        			itemDiv.style.top = y * tileSize + "px";
+					const fieldContainer = document.querySelector(".field");
+        			fieldContainer.appendChild(itemDiv);
+					if (itemType === enemy) {
+						enemyX.push(x);
+            			enemyY.push(y);
+           	 			enemyHealth.push(healthPercentage);
+            
+            			const healthDiv = document.createElement("div");
+            			healthDiv.className = "health";
+            			healthDiv.style.width = healthPercentage + "%";
+            			itemDiv.appendChild(healthDiv);
+        			} else if (itemType === player) {
+						positionX = itemDiv.style.left;
+						positionY = itemDiv.style.top;
+						displayHealth(itemDiv, healthPercentage);
+        			} else  if (itemType === healthPotion) {
+            			healthPotionLocations.push({ x, y });
+        			} else if (itemType === sword) {
+            			swordLocations.push({ x, y });
+        			}
+				}
+			}
+
+			function checkHealthPotion(x, y) {
+    			for (let i = 0; i < healthPotionLocations.length; i++) {
+        			if (playerX === healthPotionLocations[i].x && playerY === healthPotionLocations[i].y) {
+            			playerHealth = Math.min(100, playerHealth + 100); 
+            			const playerHealthBar = document.getElementById("player-health-bar");
+            			playerHealthBar.style.width = playerHealth + "%";
+            			const potionDiv = document.querySelector(`.tile.tileHP[style="left: ${playerX * tileSize}px; top: ${playerY * tileSize}px;"]`);
+            			potionDiv.remove(); 
+            			healthPotionLocations.splice(i, 1);
+						return true;
+        			}
+    			}
+    		return false;
+		}
+
+		function checkSword(x, y) {
+    		for (let i = 0; i < swordLocations.length; i++) {
+        		if (playerX === swordLocations[i].x && playerY === swordLocations[i].y) {
+            		playerAttackDamage = 100; 
+					const swordDiv = document.querySelector(`.tile.tileSW[style="left: ${playerX * tileSize}px; top: ${playerY * tileSize}px;"]`);
+					swordDiv.remove();
+            		swordLocations.splice(i, 1);
+					setTimeout(() => {
+        				playerAttackDamage = 50;
+    				}, 10000);
+            		return true;
+        		}
+    		}
+    		return false;
+		}
+
+			function enemyAttack(playerEntity, enemyEntities) {
+    			for (let i = 0; i < enemyEntities.length; i++) {
+        			if (isAdjacent(playerEntity, enemyEntities[i])) {
+           				playerHealth -= 25; 
+            			const playerTile = $(".tileP");
+            			const healthBar = playerTile.find(".health");
+            			healthBar.css("width", playerHealth + "%"); 
+						checkGameOver();
+       				}
+    			}
+			}
+
+			function movePlayer(dx, dy) {
+				if (isPlayerTurn) {
+    			const newX = parseInt(positionX) + dx * tileSize;
+   				const newY = parseInt(positionY) + dy * tileSize;
+
+				let newPlayerX = newX / tileSize;
+    			let newPlayerY = newY / tileSize;
+
+    			if (
+        			newX >= 0 &&
+        			newX < mapWidth * tileSize &&
+        			newY >= 0 &&
+        			newY < mapHeight * tileSize &&
+        			mapState[newPlayerY][newPlayerX] === floor
+    			) {
+        			positionX = newX + "px";
+        			positionY = newY + "px";
+
+        			const currentTile = $(".tileP");
+        			currentTile.css({ left: positionX, top: positionY });
+
+        			const newPlayerX = newX / tileSize;
+        			const newPlayerY = newY / tileSize;
+
+        			if (mapState[newPlayerY][newPlayerX] === floor) {
+            			mapState[playerY][playerX] = floor;
+            			playerX = newPlayerX;
+            			playerY = newPlayerY;
+						playerEntity.x = newPlayerX;
+						playerEntity.y = newPlayerY;
+            			mapState[playerY][playerX] = player;
+        			}
+    			}
+				checkHealthPotion();
+				checkSword();
+				isPlayerTurn = false;
+				moveEnemies();
+				enemyAttack(playerEntity, enemyEntities);
+				checkWin();
+				}	
+			}
+
+			function moveEnemies() {
+    			if (isPlayerTurn) {
+        			return; 
+    			}
+
+   				for (let i = 0; i < enemyX.length; i++) {
+        			let dx = 0;
+        			let dy = 0;
+
+        		if (Math.random() < 0.5) {
+           			dx = Math.random() < 0.5 ? 1 : -1;
+        		} else {
+            		dy = Math.random() < 0.5 ? 1 : -1;
+        		}
+				const newEnemyX = enemyX[i] + dx;
+        		const newEnemyY = enemyY[i] + dy;
+
+        		if (
+            		newEnemyX >= 0 &&
+            		newEnemyX < mapWidth &&
+            		newEnemyY >= 0 &&
+            		newEnemyY < mapHeight &&
+            		mapState[newEnemyY][newEnemyX] === floor
+        		) {
+            		mapState[enemyY[i]][enemyX[i]] = floor;
+
+            		enemyX[i] = newEnemyX;
+            		enemyY[i] = newEnemyY;
+            		mapState[enemyY[i]][enemyX[i]] = enemy;
+
+            		const currentEnemyTile = $(`.tileE:eq(${i})`);
+            		currentEnemyTile.css({
+                		left: newEnemyX * tileSize + "px",
+                		top: newEnemyY * tileSize + "px"
+            		});
+        		}
+				enemyEntities[i] = { x: enemyX[i], y: enemyY[i] };
+    		}
+    		isPlayerTurn = true; 
+		}
+
+		function isAdjacent(entity1, entity2) {
+    		return (
+        		(Math.abs(entity1.x - entity2.x) <= 1 && Math.abs(entity1.y - entity2.y) <= 1)
+    		);
+		}
+
+    	$(document).keydown(function (event) {
+        	switch (event.key.toLowerCase()) {
+            	case "w":
+                	movePlayer(0, -1);
+                	break;
+            	case "a":
+                	movePlayer(-1, 0);
+                	break;
+            	case "s":
+                	movePlayer(0, 1);
+                	break;
+            	case "d":
+                	movePlayer(1, 0);
+                	break;
+				case " ":
+            		for (let i = 0; i < enemyEntities.length; i++) {
+               			if (isAdjacent(playerEntity, enemyEntities[i])) {
+                    		enemyHealth[i] -= playerAttackDamage;
+                    		const enemyTile = $(`.tileE:eq(${i})`);
+                    		const healthBar = enemyTile.find(".health");
+							console.log(enemyTile,healthBar,enemyHealth[i]);
+                    		healthBar.css("width", enemyHealth[i] + "%");
+
+                    		if (enemyHealth[i] <= 0) {
+                        		enemyX.splice(i, 1);
+                        		enemyY.splice(i, 1);
+                        		enemyHealth.splice(i, 1);
+								enemyEntities.splice(i, 1);
+								enemyTile.remove();
+
+								mapState[enemyY[i]][enemyX[i]] = floor;
+                    		}
+                		}
+            		}
+        		}
+			});
+
+			function checkGameOver() {
+    			if (playerHealth <= 0) {
+        			const gameOverElement = document.createElement("div");
+					gameOverElement.classList.add("game-over");
+					gameOverElement.textContent = "GAME OVER";
+					const mapElement = document.getElementById("map");
+        			mapElement.appendChild(gameOverElement);
+        			$(document).off("keydown");
+    			}
+			}
+
+			function checkWin() {
+    			if (enemyX.length === 0) {
+        			const winElement = document.createElement("div");
+					winElement.classList.add("you-win");
+					winElement.textContent = "YOU WIN";
+					const mapElement = document.getElementById("map");
+        			mapElement.appendChild(winElement);
+        			$(document).off("keydown");
+    			}
+			}
+
+			generateMap();
+			placeItems(enemy,10);
+			placeItems(sword, 2); 
+    		placeItems(healthPotion, 10);
+			placeItems(player,1);
+
+		});
+		</script>
+	</body>
+</html>
